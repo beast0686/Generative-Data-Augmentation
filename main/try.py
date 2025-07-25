@@ -486,7 +486,7 @@ def expand_dataset(generator, device, dataset_path, num_classes, samples_per_cla
 # =============================================================================
 
 if __name__ == "__main__":
-    DATASET_PATH = r"/dataset"
+    DATASET_PATH = r"../dataset"
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
     NUM_EPOCHS = 20 if device == 'cpu' else 50
