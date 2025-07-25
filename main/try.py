@@ -12,9 +12,10 @@ import matplotlib.pyplot as plt
 # =============================================================================
 
 class NoiseScheduler:
-    def __init__(self, num_timesteps=1000, beta_start=1e-4, beta_end=0.02):
+    def __init__(self, num_timesteps=1000, beta_start=1e-4, beta_end=0.02, device='cpu'):
         self.num_timesteps = num_timesteps
-        self.betas = torch.linspace(beta_start, beta_end, num_timesteps)
+        self.device = device
+        self.betas = torch.linspace(beta_start, beta_end, num_timesteps, device=device)
         self.alphas = 1.0 - self.betas
         self.alphas_cumprod = torch.cumprod(self.alphas, dim=0)
         self.alphas_cumprod_prev = F.pad(self.alphas_cumprod[:-1], (1, 0), value=1.0)
@@ -297,12 +298,13 @@ def create_dataloaders(dataset_path, batch_size=32, img_size=64, num_workers=0):
 # =============================================================================
 
 class ConditionalDiffusionGenerator(nn.Module):
-    def __init__(self, img_channels=3, img_size=64, num_classes=102):
+    def __init__(self, img_channels=3, img_size=64, num_classes=102, device='cpu'):
         super().__init__()
         self.img_channels = img_channels
         self.img_size = img_size
         self.num_classes = num_classes
-        self.noise_scheduler = NoiseScheduler()
+        self.device = device
+        self.noise_scheduler = NoiseScheduler(device=device)
         self.unet = ConditionalUNet(
             in_channels=img_channels,
             out_channels=img_channels,
@@ -315,7 +317,7 @@ class ConditionalDiffusionGenerator(nn.Module):
         x = torch.randn(batch_size, self.img_channels, self.img_size, self.img_size, device=device)
         if class_labels is None:
             class_labels = torch.randint(0, self.num_classes, (batch_size,), device=device)
-        timesteps = torch.linspace(self.noise_scheduler.num_timesteps - 1, 0, num_inference_steps, dtype=torch.long)
+        timesteps = torch.linspace(self.noise_scheduler.num_timesteps - 1, 0, num_inference_steps, dtype=torch.long, device=device)
         for i, t in enumerate(timesteps):
             t_batch = torch.full((batch_size,), t, device=device, dtype=torch.long)
             with torch.no_grad():
@@ -377,7 +379,7 @@ def train_conditional_diffusion_gan(dataset_path, num_epochs=100, batch_size=32,
     )
     print(f"Training on {num_classes} flower classes")
     generator = ConditionalDiffusionGenerator(
-        img_channels=3, img_size=img_size, num_classes=num_classes
+        img_channels=3, img_size=img_size, num_classes=num_classes, device=device
     ).to(device)
     discriminator = AdaptiveDiscriminator(img_channels=3, img_size=img_size).to(device)
     g_optimizer = torch.optim.Adam(generator.parameters(), lr=lr, betas=(0.5, 0.999))
@@ -447,8 +449,8 @@ def generate_samples(generator, device, num_classes, epoch, num_samples=16):
         for i, ax in enumerate(axes.flat):
             if i < len(samples):
                 img = samples[i].cpu().permute(1, 2, 0).numpy()
-                ax.imshow(img)
                 ax.set_title(f'Class {class_labels[i].item() + 1}')
+                ax.imshow(img)
                 ax.axis('off')
             else:
                 ax.axis('off')
@@ -484,7 +486,7 @@ def expand_dataset(generator, device, dataset_path, num_classes, samples_per_cla
 # =============================================================================
 
 if __name__ == "__main__":
-    DATASET_PATH = r"D:\BNMIT\Internship\IAMPro2025\Generative-Data-Augmentation\dataset"
+    DATASET_PATH = r"/dataset"
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
     NUM_EPOCHS = 20 if device == 'cpu' else 50
