@@ -5,13 +5,14 @@ from datetime import datetime
 from pathlib import Path
 
 import typer
-from torch import nn, optim, stack, Tensor
+from torch import Tensor, nn, optim, stack
 from torch.utils.data import ConcatDataset, DataLoader, TensorDataset
 from torchvision import datasets, transforms
 
 from eval.abc import Result, Runner
 from gan.gan import ConditionalGANAugmentor
 from utils.logger import get_logger
+from utils.tensor_dataset import TensorDatasetWrapper
 
 logger = get_logger(__name__)
 
@@ -121,7 +122,12 @@ class Flower102Runner(Runner):
             synthetic_imgs = stack([normalize(img) for img in synthetic_imgs])
 
             synthetic_dataset = TensorDataset(synthetic_imgs, synthetic_labels)
-            train_dataset = ConcatDataset([train_dataset, synthetic_dataset])
+            train_dataset = ConcatDataset(
+                [
+                    TensorDatasetWrapper(train_dataset),
+                    TensorDatasetWrapper(synthetic_dataset),
+                ]
+            )
 
         train_loader = DataLoader(
             train_dataset,
